@@ -56,15 +56,30 @@ const app = express();
 // Origin pointing at http://localhost:<port>. Everything else is
 // rejected. The Vite dev server proxies /api → us so its origin is
 // also localhost.
+// Secure, non-hardcoded origin validation.
+// Safely matches against ALLOWED_ORIGIN, Render built-in RENDER_EXTERNAL_URL, or APP_URL.
+const configuredOrigins = new Set(
+  [
+    process.env.ALLOWED_ORIGIN,
+    process.env.RENDER_EXTERNAL_URL,
+    process.env.APP_URL,
+  ]
+    .filter(Boolean)
+    .map(u => u.trim().replace(/\/+$/, '').toLowerCase())
+);
+
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  const allow =
+  const rawOrigin = req.headers.origin;
+  const origin = rawOrigin ? rawOrigin.trim().replace(/\/+$/, '').toLowerCase() : null;
+
+  const isLocalOrigin =
     !origin ||
     /^https?:\/\/localhost(:\d+)?$/i.test(origin) ||
     /^https?:\/\/127\.0\.0\.1(:\d+)?$/i.test(origin) ||
-    /^https?:\/\/\[::1\](:\d+)?$/i.test(origin) ||
-    /^https?:\/\/.*\.onrender\.com$/i.test(origin) ||
-    origin === 'https://globalsir.onrender.com';
+    /^https?:\/\/\[::1\](:\d+)?$/i.test(origin);
+
+  const isConfiguredOrigin = origin && configuredOrigins.has(origin);
+  const allow = isLocalOrigin || isConfiguredOrigin;
   if (!allow) {
     return res.status(403).json({ error: 'Cross-origin request refused' });
   }
