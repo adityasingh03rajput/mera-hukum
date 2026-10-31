@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 // v1.10.0 — `cors` package no longer imported. The CORS-lockdown
 // middleware below is intentionally custom + strict (localhost only)
 // where `cors()` echoed `*` for every origin.
@@ -62,7 +62,9 @@ app.use((req, res, next) => {
     !origin ||
     /^https?:\/\/localhost(:\d+)?$/i.test(origin) ||
     /^https?:\/\/127\.0\.0\.1(:\d+)?$/i.test(origin) ||
-    /^https?:\/\/\[::1\](:\d+)?$/i.test(origin);
+    /^https?:\/\/\[::1\](:\d+)?$/i.test(origin) ||
+    /^https?:\/\/.*\.onrender\.com$/i.test(origin) ||
+    origin === 'https://globalsir.onrender.com';
   if (!allow) {
     return res.status(403).json({ error: 'Cross-origin request refused' });
   }
@@ -2176,7 +2178,8 @@ process.on('unhandledRejection', (err) => { console.error(`  Unexpected error (t
 // every byte stays on the user's machine, which the privacy promise depends on.
 let activeServer = null;
 function startServer(port) {
-  const server = app.listen(port, '127.0.0.1', () => {
+  const host = process.env.HOST || (process.env.PORT ? '0.0.0.0' : '127.0.0.1');
+  const server = app.listen(port, host, () => {
     activeServer = server;
     // Persist the chosen port — the .bat launcher reads this for the browser URL.
     // Writing on EVERY successful boot means: if our preferred 47371 was busy and
@@ -2470,7 +2473,8 @@ if (process.argv.includes('--after-pid') && afterPid) {
     await new Promise(r => setTimeout(r, 250));
   }
 }
-startServer(STARTING_PORT);
+const initialPort = process.env.PORT ? parseInt(process.env.PORT, 10) : STARTING_PORT;
+startServer(initialPort);
 // Fire once after a short delay so the listener is up first; then once a day
 // for users whose server stays up >24h.
 // v1.10.6 — audit L19: async caller. Uncaught rejections logged via
